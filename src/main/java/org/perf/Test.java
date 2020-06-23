@@ -1,5 +1,25 @@
 package org.perf;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.zip.DataFormatException;
+
+import javax.management.MBeanServer;
+
 import org.HdrHistogram.Histogram;
 import org.cache.Cache;
 import org.cache.CacheFactory;
@@ -8,24 +28,23 @@ import org.cache.impl.HazelcastCacheFactory;
 import org.cache.impl.HotrodCacheFactory;
 import org.cache.impl.InfinispanCacheFactory;
 import org.cache.impl.tri.TriCacheFactory;
-import org.jgroups.*;
+import org.jgroups.Address;
+import org.jgroups.Global;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+import org.jgroups.ReceiverAdapter;
+import org.jgroups.View;
 import org.jgroups.annotations.Property;
 import org.jgroups.conf.ClassConfigurator;
 import org.jgroups.jmx.JmxConfigurator;
-import org.jgroups.util.*;
+import org.jgroups.util.Bits;
+import org.jgroups.util.ByteArrayDataInputStream;
+import org.jgroups.util.ByteArrayDataOutputStream;
+import org.jgroups.util.Promise;
+import org.jgroups.util.ResponseCollector;
+import org.jgroups.util.Streamable;
 import org.jgroups.util.UUID;
-
-import javax.management.MBeanServer;
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.zip.DataFormatException;
+import org.jgroups.util.Util;
 
 
 /**
@@ -635,10 +654,17 @@ public class Test extends ReceiverAdapter {
 
 
     protected void validate() {
-        View v=control_channel.getView();
-        Map<Integer, List<byte[]>> map=new HashMap<>(num_keys), error_map=new HashMap<>();
+        if (cache.isClientServer()) {
+            validateClientServer();
+        } else {
+            validateEmbedded();
+        }
+    }
 
-        int total_keys=0, tot_errors=0;
+    private void validateEmbedded() {
+        View v=control_channel.getView();
+        Validation<Integer, byte[]> validation = newValidation();
+
         for(Address mbr : v) {
             Map<Integer,byte[]> mbr_map;
             if(Objects.equals(mbr, local_addr))
@@ -655,50 +681,35 @@ public class Test extends ReceiverAdapter {
                 }
             }
 
-            int size=mbr_map.size();
-            int errors=0;
-            total_keys+=size;
-
-            System.out.printf("-- Validating contents of %s (%,d keys): ", mbr, size);
-            for(Map.Entry<Integer,byte[]> entry: mbr_map.entrySet()) {
-                Integer key=entry.getKey();
-                byte[] val=entry.getValue();
-
-                List<byte[]> values=map.get(key);
-                if(values == null) { // key has not yet been added
-                    map.put(key, values=new ArrayList<>());
-                    values.add(val);
-                }
-                else {
-                    if(values.size() >= 2)
-                        System.err.printf("key %d already has 2 values\n", key);
-                    else {
-                        values.add(val);
-                    }
-                    byte[] val1=values.get(0);
-                    for(byte[] value: values) {
-                        if(!Arrays.equals(value, val1)) {
-                            errors++;
-                            tot_errors++;
-                            error_map.put(key, values);
-                            break;
-                        }
-                    }
-                }
-            }
-            if(errors > 0)
-                System.err.printf("FAIL: %d errors\n", errors);
-            else
-                System.out.print("OK\n");
+            validation.addMember(String.valueOf(mbr), mbr_map);
         }
-        System.out.println(Util.bold(String.format("\nValidated %,d keys total, %,d errors\n\n", total_keys, tot_errors)));
-        if(tot_errors > 0) {
-            for(Map.Entry<Integer,List<byte[]>> entry: error_map.entrySet()) {
-                Integer key=entry.getKey();
-                List<byte[]> values=entry.getValue();
-                System.err.printf("%d:\n%s\n", key, print(values));
+        validation.printResult();
+    }
+
+    private void validateClientServer() {
+        //in client server, all IspnPerf instance connect to the same server.
+        //just check if multiple sites available
+        Collection<String> clusters = cache.clusters();
+        System.out.println("[validate] clusters found: " + clusters);
+        Validation<Integer, byte[]> validation = newValidation();
+
+        try {
+            for (String cluster_id : clusters) {
+                if (!cache.switchToCluster(cluster_id)) {
+                    System.err.println("Failed to switch to cluster " + cluster_id);
+                    return;
+                }
+                validation.addMember(cluster_id, getContents());
             }
+        } finally {
+            cache.resetCluster();
         }
+
+        validation.printResult();
+    }
+
+    private Validation<Integer, byte[]> newValidation() {
+        return new Validation<>(num_keys, Arrays::equals, Test::print);
     }
 
     protected static String print(List<byte[]> list) {

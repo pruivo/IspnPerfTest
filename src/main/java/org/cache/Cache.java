@@ -1,5 +1,7 @@
 package org.cache;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -49,8 +51,25 @@ public interface Cache<K,V> {
 
     /**
      * Returns the local contents of a cache, ie. does not make any remote calls
+     *
      * @return A map of keys and values
      */
-    Map<K,V> getContents();
+    Map<K, V> getContents();
+
+    default boolean isClientServer() {
+        return false;
+    }
+
+    default Collection<String> clusters() {
+        return Collections.emptyList();
+    }
+
+    default boolean switchToCluster(String id) {
+        return false;
+    }
+
+    default void resetCluster() {
+
+    }
 
 }

@@ -5,14 +5,19 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.cache.Cache;
 import org.cache.CacheFactory;
 import org.infinispan.client.hotrod.RemoteCache;
 import org.infinispan.client.hotrod.RemoteCacheManager;
+import org.infinispan.client.hotrod.configuration.ClusterConfiguration;
 import org.infinispan.client.hotrod.configuration.Configuration;
 import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
+import org.infinispan.client.hotrod.impl.transport.netty.ChannelFactory;
 import org.infinispan.commons.configuration.BasicConfiguration;
 import org.infinispan.configuration.parsing.ConfigurationBuilderHolder;
 import org.infinispan.configuration.parsing.ParserRegistry;
@@ -95,9 +100,24 @@ public class HotrodCacheFactory<K, V> implements CacheFactory<K, V> {
     }
 
     public Cache<K, V> create(String cache_name) {
+        List<String> clusters = clusterStream().collect(Collectors.toList());
         BasicConfiguration config = configurationBuilderHolder.getNamedConfigurationBuilders().get(cache_name).build();
+        for (String cluster : clusters) {
+            remoteCacheManager.switchToCluster(cluster);
+            remoteCacheManager.administration().getOrCreateCache(cache_name, config);
+        }
+
+        remoteCacheManager.switchToDefaultCluster();
         RemoteCache<K, V> cache = remoteCacheManager.administration().getOrCreateCache(cache_name, config);
-        return new HotrodCache<>(cache);
+        return new HotrodCache<>(cache, clusters);
+    }
+
+    private Stream<String> clusterStream() {
+        Stream<String> current = Stream.of(ChannelFactory.DEFAULT_CLUSTER_NAME);
+        Stream<String> clusters = remoteCacheManager.getConfiguration().clusters()
+              .stream()
+              .map(ClusterConfiguration::getClusterName);
+        return Stream.concat(current, clusters).distinct();
     }
 
     interface InputStreamFunction<T> {
