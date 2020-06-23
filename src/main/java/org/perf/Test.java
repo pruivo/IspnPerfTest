@@ -27,6 +27,7 @@ import org.cache.impl.DummyCacheFactory;
 import org.cache.impl.HazelcastCacheFactory;
 import org.cache.impl.HotrodCacheFactory;
 import org.cache.impl.InfinispanCacheFactory;
+import org.cache.impl.MasterRole;
 import org.cache.impl.tri.TriCacheFactory;
 import org.jgroups.Address;
 import org.jgroups.Global;
@@ -53,7 +54,7 @@ import org.jgroups.util.Util;
  * (sent to it by every member) and prints stats (throughput).
  * @author Bela Ban
  */
-public class Test extends ReceiverAdapter {
+public class Test extends ReceiverAdapter  {
     protected CacheFactory<Integer,byte[]> cache_factory;
     protected Cache<Integer,byte[]> cache;
     protected JChannel control_channel;
@@ -70,6 +71,11 @@ public class Test extends ReceiverAdapter {
     protected final Promise<Map<Integer,byte[]>> contents_promise=new Promise<>();
     protected final Promise<Config>               config_promise=new Promise<>();
     protected Thread                              test_runner;
+    private final boolean master;
+
+    public Test(boolean master) {
+        this.master = master;
+    }
 
     protected enum Type {
         START_ISPN,
@@ -151,6 +157,10 @@ public class Test extends ReceiverAdapter {
                 System.err.println("failed to fetch config from " + coord);
         }
 
+        if (master) {
+            return;
+        }
+
         if(!cache.isEmpty()) {
             int size=cache.size();
             if(size < 10)
@@ -192,6 +202,9 @@ public class Test extends ReceiverAdapter {
     }
 
     protected synchronized void startTestRunner(final Address addr) {
+        if (master) {
+            return;
+        }
         if(test_runner != null && test_runner.isAlive())
             System.err.println("test is already running - wait until complete to start a new run");
         else {
@@ -472,6 +485,13 @@ public class Test extends ReceiverAdapter {
 
     /** Kicks off the benchmark on all cluster nodes */
     protected void startBenchmark() {
+        Collection<Address> members;
+        if (master) {
+            members = new ArrayList<>(this.members);
+            members.remove(local_addr);
+        } else {
+            members = this.members;
+        }
         results.reset(members);
         try {
             send(null, Type.START_ISPN);
@@ -593,6 +613,10 @@ public class Test extends ReceiverAdapter {
     }
 
     protected void printCacheSize() {
+        if (master) {
+            System.err.println("not supported yet.");
+            return;
+        }
         int size=cache.size();
         System.out.println("-- cache has " + size + " elements");
     }
@@ -603,6 +627,9 @@ public class Test extends ReceiverAdapter {
     }
 
     protected void changeKeySet() {
+        if (master) {
+            return;
+        }
         if(keys == null || keys.length != num_keys) {
             int old_key_size=keys != null? keys.length : 0;
             keys=createKeys(num_keys);
@@ -613,6 +640,10 @@ public class Test extends ReceiverAdapter {
 
     // Inserts num_keys keys into the cache (in parallel)
     protected void populateCache() throws InterruptedException {
+        if (master) {
+            System.err.println("not supported.");
+            return;
+        }
         final AtomicInteger key=new AtomicInteger(1);
         final int           print=num_keys / 10;
         final UUID          local_uuid=(UUID)local_addr;
@@ -667,9 +698,12 @@ public class Test extends ReceiverAdapter {
 
         for(Address mbr : v) {
             Map<Integer,byte[]> mbr_map;
-            if(Objects.equals(mbr, local_addr))
+            if(Objects.equals(mbr, local_addr)) {
+                if (master) {
+                    continue;
+                }
                 mbr_map=getContents();
-            else {
+            } else {
                 try {
                     contents_promise.reset(false);
                     send(mbr, Type.GET_CONTENTS_REQ);
@@ -723,6 +757,10 @@ public class Test extends ReceiverAdapter {
     }
 
     protected void dumpLocalCache() {
+        if (master) {
+            System.err.println("not supported yet.");
+            return;
+        }
         Map<Integer,byte[]> local_cache=new TreeMap<>(getContents());
         for(Map.Entry<Integer, byte[]> entry: local_cache.entrySet()) {
             System.out.printf("%d: %d\n", entry.getKey(), Bits.readLong(entry.getValue(), Global.LONG_SIZE*2));
@@ -922,8 +960,8 @@ public class Test extends ReceiverAdapter {
         }
 
         Test test=null;
+        boolean master=false;
         try {
-            test=new Test();
             switch(cache_factory_name) {
                 case "ispn":
                     cache_factory_name=infinispan_factory;
@@ -943,7 +981,12 @@ public class Test extends ReceiverAdapter {
                 case "dummy":
                     cache_factory_name=dummy_factory;
                     break;
+                case "master":
+                    cache_factory_name= MasterRole.class.getName();
+                    master = true;
+                    break;
             }
+            test=new Test(master);
             test.init(cache_factory_name, config_file, jgroups_config, cache_name);
             Runtime.getRuntime().addShutdownHook(new Thread(test::stop));
             if(run_event_loop)
