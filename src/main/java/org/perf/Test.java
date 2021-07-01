@@ -8,6 +8,7 @@ import org.cache.impl.HazelcastCacheFactory;
 import org.cache.impl.HotrodCacheFactory;
 import org.cache.impl.InfinispanCacheFactory;
 import org.cache.impl.tri.TriCacheFactory;
+import org.counter.ispn.InfinispanEmbeddedCounterFactory;
 import org.jgroups.*;
 import org.jgroups.annotations.Property;
 import org.jgroups.conf.ClassConfigurator;
@@ -88,6 +89,7 @@ public class Test extends ReceiverAdapter {
     protected static final String tri_factory=TriCacheFactory.class.getName();
     protected static final String hr_factory=HotrodCacheFactory.class.getName();
     protected static final String dummy_factory=DummyCacheFactory.class.getName();
+    protected static final String ispn_counter_factory = InfinispanEmbeddedCounterFactory.class.getName();
 
     protected static final String input_str="[1] Start test [2] View [3] Cache size [4] Threads (%d) " +
       "\n[5] Keys (%,d) [6] Time (secs) (%d) [7] Value size (%s) [8] Validate" +
@@ -932,6 +934,9 @@ public class Test extends ReceiverAdapter {
                 case "dummy":
                     cache_factory_name=dummy_factory;
                     break;
+                case "ispn-counter":
+                    cache_factory_name= ispn_counter_factory;
+                    break;
             }
             test.init(cache_factory_name, config_file, jgroups_config, cache_name);
             Runtime.getRuntime().addShutdownHook(new Thread(test::stop));
@@ -949,8 +954,8 @@ public class Test extends ReceiverAdapter {
         System.out.printf("Test [-factory <cache factory classname>] [-cfg <config-file>] " +
                             "[-cache <cache-name>] [-jgroups-cfg] [-nohup]\n" +
                             "Valid factory names:" +
-                            "\n  ispn: %s\n  hc:   %s\n  coh:  %s\n  tri:  %s\n   hr:  %s\n dummy: %s\n\n",
-                          infinispan_factory, hazelcast_factory, coherence_factory, tri_factory, hr_factory, dummy_factory);
+                            "\n  ispn: %s\n  hc:   %s\n  coh:  %s\n  tri:  %s\n   hr:  %s\n dummy: %s\n ispn-counter:  %s\n\n",
+                          infinispan_factory, hazelcast_factory, coherence_factory, tri_factory, hr_factory, dummy_factory, ispn_counter_factory);
     }
 
 

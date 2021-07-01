@@ -1,19 +1,20 @@
 #!/bin/bash
 
+set -x
 
 # Author: Bela Ban
 
 DIR=`dirname $0`
 TARGET_DIR=$DIR/../target
-DEP=$TARGET_DIR/dependency
+LIBS=$TARGET_DIR/libs
 
 if [ ! -d $TARGET_DIR ]; then
    echo "$TARGET_DIR not found; run build.sh first!"
    exit 1
 fi
 
-if [ ! -d $DEP ]; then
-  echo "$DEP not found; run build.sh first!"
+if [ ! -d $LIBS ]; then
+  echo "$LIBS not found; run build.sh first!"
   exit 1
 fi
 
@@ -28,8 +29,6 @@ fi;
 if [ -f $HOME/logging.properties ]; then
     LOG="$LOG -Djava.util.logging.config.file=$HOME/logging.properties"
 fi;
-
-CP="$TARGET_DIR/classes:$DEP/*"
 
 FLAGS="$JAVA_OPTIONS"
 
@@ -84,5 +83,5 @@ export proc_id=$$
 
 # exec mvn -o -f $POM exec:java $FLAGS $JMX $LOG -Dexec.mainClass=org.perf.Test -Dexec.args="$*"
 
-java -cp $CP $FLAGS $DEBUG org.perf.Test $*
+java -cp "$LIBS/*" $FLAGS $DEBUG org.perf.Test $*
 
