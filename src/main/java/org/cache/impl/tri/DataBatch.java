@@ -95,7 +95,7 @@ public class DataBatch implements SizeStreamable, Runnable, Iterable<Data> {
     }
 
     public void writeTo(DataOutput out) throws IOException {
-        Bits.writeInt(size(), out);
+        Bits.writeIntCompressed(size(), out);
         for(int i=0; i < pos; i++) {
             if(data[i] != null)
                 data[i].writeTo(out);
@@ -103,7 +103,7 @@ public class DataBatch implements SizeStreamable, Runnable, Iterable<Data> {
     }
 
     public void writeTo(DataOutput out, Data.Type t) throws Exception {
-        Bits.writeInt(size(t), out);
+        Bits.writeIntCompressed(size(t), out);
         for(int i=0; i < pos; i++) {
             if(data[i] != null && data[i].type == t)
                 data[i].writeTo(out);
@@ -111,7 +111,7 @@ public class DataBatch implements SizeStreamable, Runnable, Iterable<Data> {
     }
 
     public void readFrom(DataInput in) throws IOException, ClassNotFoundException {
-        data=new Data[Bits.readInt(in)];
+        data=new Data[Bits.readIntCompressed(in)];
         for(int i=0; i < data.length; i++) {
             data[i]=new Data().read(in);
             pos++;

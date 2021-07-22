@@ -46,7 +46,7 @@
     </scm>
 
     <properties>
-        <!--version.jgroups>4.2.0.Final</version.jgroups-->
+        <version.jgroups>5.1.8.Final</version.jgroups>
         <version.infinispan>13.0.0-SNAPSHOT</version.infinispan>
         <version.hazelcast>3.9.3</version.hazelcast>
         <version.hdrhistogram>2.1.10</version.hdrhistogram>
@@ -66,84 +66,6 @@
         </nexus.snapshot.server.url>
     </properties>
 
-
-    <distributionManagement>
-        <repository>
-            <id>${nexus.server.id}</id>
-            <name>JBoss Releases Repository</name>
-            <url>${nexus.server.url}</url>
-        </repository>
-        <snapshotRepository>
-            <id>${nexus.snapshot.server.id}</id>
-            <url>${nexus.snapshot.server.url}</url>
-        </snapshotRepository>
-    </distributionManagement>
-
-    <repositories>
-        <repository>
-            <id>jboss-public-repository-group</id>
-            <name>JBoss Public Maven Repository Group</name>
-            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>interval:120</updatePolicy>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>jboss-releases-repository</id>
-            <name>JBoss Public Maven Repository Staging</name>
-            <url>https://repository.jboss.org/nexus/service/local/staging/deploy/maven2</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>interval:120</updatePolicy>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>jboss-snapshots-repository</id>
-            <name>JBoss Nexus snapshots repository</name>
-            <url>https://repository.jboss.org/nexus/content/repositories/snapshots/</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>false</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>interval:120</updatePolicy>
-            </snapshots>
-        </repository>
-
-        <!--<repository>
-            <id>maven.oracle.com</id>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <url>https://maven.oracle.com</url>
-            <layout>default</layout>
-        </repository>-->
-
-    </repositories>
-
-    <!-- <pluginRepositories>
-       <pluginRepository>
-         <id>maven.oracle.com</id>
-         <url>https://maven.oracle.com</url>
-       </pluginRepository>
-     </pluginRepositories>-->
-
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -157,6 +79,12 @@
     </dependencyManagement>
 
     <dependencies>
+
+        <dependency>
+            <groupId>org.jgroups</groupId>
+            <artifactId>jgroups</artifactId>
+            <version>${version.jgroups}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.infinispan</groupId>

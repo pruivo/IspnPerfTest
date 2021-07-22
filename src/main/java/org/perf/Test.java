@@ -1,5 +1,24 @@
 package org.perf;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.zip.DataFormatException;
+
+import javax.management.MBeanServer;
+
 import org.HdrHistogram.Histogram;
 import org.cache.Cache;
 import org.cache.CacheFactory;
@@ -10,24 +29,23 @@ import org.cache.impl.InfinispanCacheFactory;
 import org.cache.impl.tri.TriCacheFactory;
 import org.counter.ispn.InfinispanEmbeddedCounterFactory;
 import org.counter.jgroups.JGroupsCounterFactory;
-import org.jgroups.*;
+import org.jgroups.Address;
+import org.jgroups.Global;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+import org.jgroups.Receiver;
+import org.jgroups.View;
 import org.jgroups.annotations.Property;
 import org.jgroups.conf.ClassConfigurator;
 import org.jgroups.jmx.JmxConfigurator;
-import org.jgroups.util.*;
+import org.jgroups.util.Bits;
+import org.jgroups.util.ByteArrayDataInputStream;
+import org.jgroups.util.ByteArrayDataOutputStream;
+import org.jgroups.util.Promise;
+import org.jgroups.util.ResponseCollector;
+import org.jgroups.util.Streamable;
 import org.jgroups.util.UUID;
-
-import javax.management.MBeanServer;
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.zip.DataFormatException;
+import org.jgroups.util.Util;
 
 
 /**
@@ -36,7 +54,7 @@ import java.util.zip.DataFormatException;
  * (sent to it by every member) and prints stats (throughput).
  * @author Bela Ban
  */
-public class Test extends ReceiverAdapter {
+public class Test implements Receiver {
     protected CacheFactory<Integer,byte[]> cache_factory;
     protected Cache<Integer,byte[]> cache;
     protected JChannel control_channel;
@@ -105,7 +123,7 @@ public class Test extends ReceiverAdapter {
     }
 
     public void init(String factory_name, String cfg, String jgroups_config, String cache_name) throws Exception {
-        Class<CacheFactory> clazz=Util.loadClass(factory_name, (Class)null);
+        Class<CacheFactory> clazz= (Class<CacheFactory>) Util.loadClass(factory_name, (Class)null);
         cache_factory=clazz.newInstance();
         cache_factory.init(cfg);
         cache=cache_factory.create(cache_name);
@@ -192,6 +210,7 @@ public class Test extends ReceiverAdapter {
         return retval;
     }
 
+    @Override
     public void receive(Message msg) {
         try {
             _receive(msg);
@@ -201,12 +220,11 @@ public class Test extends ReceiverAdapter {
         }
     }
 
-
     protected void _receive(Message msg) throws Throwable {
         ByteArrayDataInputStream in;
         Address sender=msg.src();
-        int offset=msg.getOffset(), len=msg.length();
-        byte[] buf=msg.getRawBuffer();
+        int offset=msg.getOffset(), len=msg.getLength();
+        byte[] buf=msg.getArray();
         byte t=buf[offset++];
         len--;
         Type type=Type.values()[t];
@@ -249,6 +267,7 @@ public class Test extends ReceiverAdapter {
         }
     }
 
+    @Override
     public void viewAccepted(View new_view) {
         this.view=new_view;
         members.clear();

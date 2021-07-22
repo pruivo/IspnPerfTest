@@ -75,21 +75,21 @@ public class Data<K,V> implements SizeStreamable, Runnable {
         switch(type) {
             case PUT:    // req_id | key | value
             case BACKUP: // + original_sender
-                Bits.writeLong(req_id, out);
+                Bits.writeLongCompressed(req_id, out);
                 Util.objectToStream(key, out);
                 Util.objectToStream(value, out);
                 if(type == BACKUP)
                     Util.writeAddress(sender, out);
                 break;
             case GET: // req_id | key
-                Bits.writeLong(req_id, out);
+                Bits.writeLongCompressed(req_id, out);
                 Util.objectToStream(key, out);
                 break;
             case CLEAR:
                 break;
             case ACK:    // req_id | value
             case ACK_DELAYED:
-                Bits.writeLong(req_id, out);
+                Bits.writeLongCompressed(req_id, out);
                 Util.objectToStream(value, out);
                 break;
             default:
@@ -107,21 +107,21 @@ public class Data<K,V> implements SizeStreamable, Runnable {
         switch(type) {
             case PUT:    // req_id | key | value
             case BACKUP: // + original_sender
-                req_id=Bits.readLong(in);
+                req_id=Bits.readLongCompressed(in);
                 key=Util.objectFromStream(in);
                 value=Util.objectFromStream(in);
                 if(type == BACKUP)
                     sender=Util.readAddress(in);
                 break;
             case GET: // req_id | key
-                req_id=Bits.readLong(in);
+                req_id=Bits.readLongCompressed(in);
                 key=Util.objectFromStream(in);
                 break;
             case CLEAR:
                 break;
             case ACK:    // req_id | [value] (if used as GET response)
             case ACK_DELAYED:
-                req_id=Bits.readLong(in);
+                req_id=Bits.readLongCompressed(in);
                 value=Util.objectFromStream(in);
                 break;
             default:

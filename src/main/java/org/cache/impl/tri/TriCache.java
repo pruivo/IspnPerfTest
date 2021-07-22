@@ -27,7 +27,7 @@ import java.util.stream.Stream;
  * @author Bela Ban
  * @since  1.0
  */
-public class TriCache<K,V> extends ReceiverAdapter implements Cache<K,V>, Closeable, DiagnosticsHandler.ProbeHandler {
+public class TriCache<K,V> implements Cache<K,V>, Closeable, DiagnosticsHandler.ProbeHandler, Receiver {
     protected final Map<K,V>                           map=new ConcurrentHashMap<>();
     protected final Log                                log=LogFactory.getLog(TriCache.class);
     protected JChannel                                 ch;
@@ -196,10 +196,11 @@ public class TriCache<K,V> extends ReceiverAdapter implements Cache<K,V>, Closea
         return map;
     }
 
+    @Override
     public void receive(Message msg) {
-        ByteArrayDataInputStream in=new ByteArrayDataInputStream(msg.getRawBuffer(), msg.getOffset(), msg.getLength());
+        ByteArrayDataInputStream in=new ByteArrayDataInputStream(msg.getArray(), msg.getOffset(), msg.getLength());
         try {
-            int num_elements=Bits.readInt(in);
+            int num_elements=Bits.readIntCompressed(in);
             if(num_elements == 1) {
                 Data data=new Data().read(in);
                 process(data, msg.src());
@@ -218,13 +219,14 @@ public class TriCache<K,V> extends ReceiverAdapter implements Cache<K,V>, Closea
         }
     }
 
+    @Override
     public void receive(MessageBatch batch) {
         int max_elements=countData(batch);
         DataBatch data_batch=new DataBatch(batch.sender(), max_elements);
         try {
             for(Message msg : batch) {
-                ByteArrayDataInputStream in=new ByteArrayDataInputStream(msg.getRawBuffer(), msg.getOffset(), msg.getLength());
-                int num=Bits.readInt(in);
+                ByteArrayDataInputStream in=new ByteArrayDataInputStream(msg.getArray(), msg.getOffset(), msg.getLength());
+                int num=Bits.readIntCompressed(in);
                 for(int i=0; i < num; i++)
                     data_batch.add(new Data().read(in));
             }
@@ -510,7 +512,7 @@ public class TriCache<K,V> extends ReceiverAdapter implements Cache<K,V>, Closea
     protected static int countData(MessageBatch batch) {
         int count=0;
         for(Message msg: batch) {
-            byte[] buf=msg.getRawBuffer();
+            byte[] buf=msg.getArray();
             if(buf != null) {
                 int num=Bits.readIntCompressed(buf, msg.getOffset());
                 count+=num;
@@ -522,9 +524,9 @@ public class TriCache<K,V> extends ReceiverAdapter implements Cache<K,V>, Closea
     protected static Message createMessage(Address dest, Data data, boolean oob) throws Exception {
         int expected_size=Global.INT_SIZE + data.serializedSize();
         ByteArrayDataOutputStream out=new ByteArrayDataOutputStream(expected_size);
-        Bits.writeInt(1, out);
+        Bits.writeIntCompressed(1, out);
         data.writeTo(out);
-        Message msg=new Message(dest, out.buffer(), 0, out.position());
+        Message msg=new BytesMessage(dest, out.buffer(), 0, out.position());
         if(oob)
             msg.setFlag(Message.Flag.OOB);
         return msg;
@@ -535,7 +537,7 @@ public class TriCache<K,V> extends ReceiverAdapter implements Cache<K,V>, Closea
     protected static Message createMessage(Address dest, DataBatch data, boolean oob) throws Exception {
         ByteArrayDataOutputStream out=new ByteArrayDataOutputStream(data.serializedSize());
         data.writeTo(out);
-        Message msg=new Message(dest, out.buffer(), 0, out.position());
+        Message msg=new BytesMessage(dest, out.buffer(), 0, out.position());
         if(oob)
             msg.setFlag(Message.Flag.OOB);
         return msg;
@@ -544,7 +546,7 @@ public class TriCache<K,V> extends ReceiverAdapter implements Cache<K,V>, Closea
     protected static Message createMessage(Address dest, DataBatch data, Data.Type type, boolean oob) throws Exception {
         ByteArrayDataOutputStream out=new ByteArrayDataOutputStream(data.serializedSize(type));
         data.writeTo(out, type);
-        Message msg=new Message(dest, out.buffer(), 0, out.position());
+        Message msg=new BytesMessage(dest, out.buffer(), 0, out.position());
         if(oob)
             msg.setFlag(Message.Flag.OOB);
         return msg;
