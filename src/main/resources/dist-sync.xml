@@ -2,13 +2,13 @@
 
 <infinispan
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="urn:infinispan:config:12.1  http://www.infinispan.org/schemas/infinispan-config-12.1.xsd"
-        xmlns="urn:infinispan:config:12.1"
-        xmlns:counter="urn:infinispan:config:counters:12.1">
+        xsi:schemaLocation="urn:infinispan:config:13.0  http://www.infinispan.org/schemas/infinispan-config-13.0.xsd"
+        xmlns="urn:infinispan:config:13.0"
+        xmlns:counter="urn:infinispan:config:counters:13.0">
 
 
     <jgroups>
-        <stack-file name="jgroupsStack" path="jgroups-tcp.xml"/>
+        <stack-file name="jgroupsStack" path="jgroups-udp.xml"/>
     </jgroups>
 
 
