@@ -4,13 +4,13 @@ set -x
 
 # Author: Bela Ban
 
-DIR=`dirname $0`
+DIR=$(dirname $0)
 TARGET_DIR=$DIR/../target
 LIBS=$TARGET_DIR/libs
 
 if [ ! -d $TARGET_DIR ]; then
-   echo "$TARGET_DIR not found; run build.sh first!"
-   exit 1
+  echo "$TARGET_DIR not found; run build.sh first!"
+  exit 1
 fi
 
 if [ ! -d $LIBS ]; then
@@ -19,16 +19,16 @@ if [ ! -d $LIBS ]; then
 fi
 
 if [ -f $HOME/log4j.properties ]; then
-    LOG="-Dlog4j.configuration=file:$HOME/log4j.properties"
-fi;
+  LOG="-Dlog4j.configuration=file:$HOME/log4j.properties"
+fi
 
 if [ -f $HOME/log4j2.xml ]; then
-    LOG="$LOG -Dlog4j.configurationFile=$HOME/log4j2.xml"
-fi;
+  LOG="$LOG -Dlog4j.configurationFile=$HOME/log4j2.xml"
+fi
 
 if [ -f $HOME/logging.properties ]; then
-    LOG="$LOG -Djava.util.logging.config.file=$HOME/logging.properties"
-fi;
+  LOG="$LOG -Djava.util.logging.config.file=$HOME/logging.properties"
+fi
 
 FLAGS="$JAVA_OPTIONS"
 
@@ -40,18 +40,15 @@ FLAGS="$FLAGS -Djava.net.preferIPv4Stack=true"
 ## Delay asking backup for GET in Infinispan:
 FLAGS="$FLAGS -Dinfinispan.stagger.delay=5000"
 
-
 ## Radargun JVM options (comment the above -Xms/-Xmx)
 #FLAGS="$FLAGS -Xms16g -Xmx16g -XX:+UseLargePages -XX:+UseG1GC -XX:MaxGCPauseMillis=300 -XX:InitiatingHeapOccupancyPercent=70"
 
 #FLAGS="$FLAGS -verbose:gc -XX:+PrintGCDateStamps -XX:+PrintGCDetails -Xloggc:gc-perf09.log -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -XX:+PrintGCCause"
 
-
 ## good flags: 112'000 reads/node ispn on edg-perf01-08
 # FLAGS="$FLAGS -XX:TLABSize=300k -XX:-ResizeTLAB"
 # FLAGS="$FLAGS -XX:+UseParallelGC -XX:GCTimeRatio=99"
 # FLAGS="$FLAGS -XX:NewRatio=1"
-
 
 ## G1; optimized for short pauses - remove -Xmx/-Xms!
 #FLAGS="$FLAGS -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
@@ -69,10 +66,17 @@ JMX="-Dcom.sun.management.jmxremote"
 #DEBUG="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8787"
 #GC_LOG="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:$HOME/gclog.log"
 
-
 ## BYTEMAN: uncomment the line below if you want to get timings (avg-send-time, avg-receive-time, avg-delivery-time)
 ## Run probe timings / timings-reset
 #BM="-javaagent:$PT/lib/byteman.jar=script:$CONF/delivery.btm,script:$CONF/send.btm,script:$CONF/requests.btm"
+
+## ASYNC PROFILER
+# Path to libasyncProfiler.so
+ASYNC_PROFILER_PATH="/home/pedro/.opt/app/async-profiler/build/libasyncProfiler.so"
+if [ "${ASYNC_PROFILER_ID}x" != "x" ] ; then
+  ASYNC_PROFILE_EVENT=${ASYNC_PROFILE_EVENT:-cpu}
+  FLAGS="-agentpath:${ASYNC_PROFILER_PATH}=start,event=${ASYNC_PROFILE_EVENT},file=${ASYNC_PROFILER_ID}.html ${FLAGS}"
+fi
 
 # Uncomment to enable dtrace tracing on the hotspot provider (e.g. lock and method invocation tracing)
 #TRACE=-XX:+ExtendedDTraceProbes
@@ -84,4 +88,3 @@ export proc_id=$$
 # exec mvn -o -f $POM exec:java $FLAGS $JMX $LOG -Dexec.mainClass=org.perf.Test -Dexec.args="$*"
 
 java -cp "$LIBS/*" $FLAGS $DEBUG org.perf.Test $*
-

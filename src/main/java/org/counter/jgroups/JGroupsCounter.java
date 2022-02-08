@@ -3,7 +3,6 @@ package org.counter.jgroups;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 import org.cache.Cache;
 import org.jgroups.blocks.atomic.Counter;
@@ -16,7 +15,6 @@ import org.jgroups.blocks.atomic.Counter;
  */
 public class JGroupsCounter<K, V> implements Cache<K, V> {
 
-   private final Function<?, V> applyFunction = v -> null;
    private final Counter counter;
 
    public JGroupsCounter(Counter counter) {
@@ -42,7 +40,7 @@ public class JGroupsCounter<K, V> implements Cache<K, V> {
 
    @Override
    public int size() {
-      return 0;
+      return (int) counter.get();
    }
 
    @Override

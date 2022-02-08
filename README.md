@@ -118,3 +118,8 @@ To run:
 
 
 [1] http://coherence-community.github.io/coherence-incubator/12.1.0/building.html
+
+RAFT Counters
+-------------
+
+JAVA_OPTIONS="-Draft_members=A,B,C -Draft_id=A" ./bin/perf-test.sh  -factory raft-counter -cfg jgroups-udp-raft.xml
