@@ -1,7 +1,8 @@
 package org.cache.impl;
 
 import java.net.InetSocketAddress;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.cache.Cache;
@@ -15,7 +16,12 @@ import net.spy.memcached.MemcachedClient;
  */
 public class MemcachedCacheFactory<K, V> implements CacheFactory<K, V> {
 
-   static final long TIMEOUT = TimeUnit.MINUTES.toMillis(1);
+   static final long TIMEOUT = TimeUnit.SECONDS.toMillis(30);
+   private static final List<InetSocketAddress> SERVERS = Arrays.asList(
+         new InetSocketAddress("192.168.1.4", 11221),
+         new InetSocketAddress("192.168.1.4", 11321),
+         new InetSocketAddress("192.168.1.4", 11421)
+   );
 
    private MemcachedClient client;
 
@@ -27,7 +33,7 @@ public class MemcachedCacheFactory<K, V> implements CacheFactory<K, V> {
             return TIMEOUT;
          }
       };
-      client = new MemcachedClient(d, Collections.singletonList(new InetSocketAddress("127.0.0.1", 11221)));
+      client = new MemcachedClient(d, SERVERS);
    }
 
    @Override
