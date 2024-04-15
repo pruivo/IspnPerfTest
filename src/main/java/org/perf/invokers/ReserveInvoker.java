@@ -22,7 +22,9 @@ public class ReserveInvoker implements Invoker {
     private final CountDownLatch latch;
     private final RemoteCacheManager rcm;
     private final Histogram requests = Invoker.createHistogram();
-    private final Histogram query = Invoker.createHistogram();
+    private final Histogram queries = Invoker.createHistogram();
+    private final Histogram reads = Invoker.createHistogram();
+    private final Histogram writes = Invoker.createHistogram();
 
     protected volatile boolean running = true;
     private long numRequests = 0;
@@ -54,15 +56,16 @@ public class ReserveInvoker implements Invoker {
             String uuid = UUID.randomUUID().toString();
             long start = Util.micros();
             Account acc = accountCache.get("1234");
+            reads.recordValue(Util.micros() - start);
 
-            long start2 = Util.micros();
             var amount = fetchAccountBalance(acc.accountId, queryFactory);
             //var amount = fetchAccountBalanceIterating(acc.accountId, actionCache);
-            query.recordValue(Util.micros() - start2);
 
             UETRAction action = new UETRAction(acc.accountId, "", uuid, "RES", amount.toPlainString());
 
+            var wStart = Util.micros();
             actionCache.put(uuid + "_RES", action);
+            writes.recordValue(Util.micros() - wStart);
             requests.recordValue(Util.micros() - start);
         }
     }
@@ -78,14 +81,24 @@ public class ReserveInvoker implements Invoker {
     }
 
     public Histogram getQuery() {
-        return query;
+        return queries;
+    }
+
+    public Histogram getReads() {
+        return reads;
+    }
+
+    public Histogram getWrites() {
+        return writes;
     }
 
     private BigDecimal fetchAccountBalance(String accountId, QueryFactory queryFactory) {
+        var start = Util.micros();
         Query<Object[]> query = queryFactory.create(
                 "select fromAccountId, toAccountId, action, amount FROM uetraction.UETRAction WHERE fromAccountId = :accountId or toAccountId = :accountId");
         query.setParameter("accountId", accountId);
         List<Object[]> list = query.maxResults(1000).hitCountAccuracy(10).list();
+        queries.recordValue(Util.micros() - start);
 
         return list.stream()
                 .map(action -> new BigDecimal((String) action[3]))

@@ -126,10 +126,10 @@ public class IndexingTest implements Receiver {
         builder.withProperties(properties);
 
         builder.remoteCache(ACCOUNT_CACHE)
-                .transactionMode(TransactionMode.NON_DURABLE_XA)
+                .transactionMode(TransactionMode.NON_XA)
                 .transactionManagerLookup(RemoteTransactionManagerLookup.getInstance());
         builder.remoteCache(ACTION_CACHE)
-                .transactionMode(TransactionMode.NON_DURABLE_XA)
+                .transactionMode(TransactionMode.NON_XA)
                 .transactionManagerLookup(RemoteTransactionManagerLookup.getInstance());
 
         builder.addContextInitializer(AccountActionInitializer.INSTANCE);
@@ -280,6 +280,8 @@ public class IndexingTest implements Receiver {
             Histogram reserveHist = null;
             Histogram commitHist = null;
             Histogram queryHist = null;
+            Histogram readHist = null;
+            Histogram writeHist = null;
 
             long reserveRequests = 0;
             long commitRequests = 0;
@@ -295,6 +297,16 @@ public class IndexingTest implements Receiver {
                 } else {
                     queryHist.add(reserve[i].getQuery());
                 }
+                if (readHist == null) {
+                    readHist = reserve[i].getReads();
+                } else {
+                    readHist.add(reserve[i].getReads());
+                }
+                if (writeHist == null) {
+                    writeHist = reserve[i].getWrites();
+                } else {
+                    writeHist.add(reserve[i].getWrites());
+                }
                 if (commitHist == null) {
                     commitHist = commit[i].getResults();
                 } else {
@@ -305,7 +317,7 @@ public class IndexingTest implements Receiver {
                 commitRequests += commit[i].getCount();
             }
 
-            Results result = new Results(commitHist, commitRequests, reserveHist, reserveRequests, queryHist, time);
+            Results result = new Results(commitHist, commitRequests, reserveHist, reserveRequests, queryHist, readHist, writeHist, time);
             send(sender, Type.RESULTS, result);
         } catch (Throwable t) {
             t.printStackTrace();
@@ -445,6 +457,8 @@ public class IndexingTest implements Receiver {
         Histogram reserveHist = null;
         Histogram commitHist = null;
         Histogram queryHist = null;
+        Histogram readHist = null;
+        Histogram writeHist = null;
 
         System.out.println("\n======================= Results: ===========================");
         for (Map.Entry<Address, Results> entry : results.getResults().entrySet()) {
@@ -465,6 +479,16 @@ public class IndexingTest implements Receiver {
                 } else {
                     queryHist.add(result.queryHist);
                 }
+                if (readHist == null) {
+                    readHist = result.readHist;
+                } else {
+                    readHist.add(result.readHist);
+                }
+                if (writeHist == null) {
+                    writeHist = result.writeHist;
+                } else {
+                    writeHist.add(result.writeHist);
+                }
                 if (commitHist == null) {
                     commitHist = result.commitHist;
                 } else {
@@ -479,9 +503,11 @@ public class IndexingTest implements Receiver {
         System.out.println(Util.bold(String.format("Throughput: %,.0f reqs/sec/node %,.0f reqs/sec/cluster\n" +
                         "Reserve: \n" +
                         "\tQuery: %s\n" +
+                        "\tRead:  %s\n" +
+                        "\tWrite: %s\n" +
                         "\tTotal: %s\n" +
                         "Commit:  %s",
-                reqs_sec_node, reqs_sec_cluster, print(queryHist, print_details), print(reserveHist, print_details), print(commitHist, print_details))));
+                reqs_sec_node, reqs_sec_cluster, print(queryHist, print_details), print(readHist, print_details), print(writeHist, print_details), print(reserveHist, print_details), print(commitHist, print_details))));
         System.out.println("\n\n");
     }
 
@@ -559,27 +585,22 @@ public class IndexingTest implements Receiver {
         remoteCacheManager.getCache(ACCOUNT_CACHE).put(accountId, account);
     }
 
-    protected static void writeTo(UUID addr, long seqno, byte[] buf, int offset) {
-        long low = addr.getLeastSignificantBits(), high = addr.getMostSignificantBits();
-        Bits.writeLong(low, buf, offset);
-        Bits.writeLong(high, buf, offset + Global.LONG_SIZE);
-        Bits.writeLong(seqno, buf, offset + Global.LONG_SIZE * 2);
-    }
-
 
     public static class Results implements Streamable {
         protected long reserveRequests, commitRequests, time; // ms
-        protected Histogram reserveHist, commitHist, queryHist;
+        protected Histogram reserveHist, commitHist, queryHist, readHist, writeHist;
 
         public Results() {
         }
 
-        public Results(Histogram commitHist, long commitRequests, Histogram reserveHist, long reserveRequests, Histogram queryHist, long time) {
+        public Results(Histogram commitHist, long commitRequests, Histogram reserveHist, long reserveRequests, Histogram queryHist, Histogram readHist, Histogram writeHist, long time) {
             this.commitHist = commitHist;
             this.commitRequests = commitRequests;
             this.reserveHist = reserveHist;
             this.reserveRequests = reserveRequests;
             this.queryHist = queryHist;
+            this.readHist = readHist;
+            this.writeHist = writeHist;
             this.time = time;
         }
 
@@ -590,6 +611,8 @@ public class IndexingTest implements Receiver {
             write(reserveHist, out);
             write(commitHist, out);
             write(queryHist, out);
+            write(readHist, out);
+            write(writeHist, out);
         }
 
         public void readFrom(DataInput in) throws IOException {
@@ -600,6 +623,8 @@ public class IndexingTest implements Receiver {
                 reserveHist = read(in);
                 commitHist = read(in);
                 queryHist = read(in);
+                readHist = read(in);
+                writeHist = read(in);
             } catch (DataFormatException dfex) {
                 throw new IOException(dfex);
             }

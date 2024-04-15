@@ -45,8 +45,8 @@
     </scm>
 
     <properties>
-        <version.infinispan>14.0.27.Final</version.infinispan>
-        <version.jgroups>5.2.23.Final</version.jgroups>
+        <version.infinispan>15.0.1.Final</version.infinispan>
+        <!--version.jgroups>5.2.23.Final</version.jgroups-->
         <version.hazelcast>5.2.5</version.hazelcast>
         <version.hdrhistogram>2.1.12</version.hdrhistogram>
         <version.log4j>2.23.0</version.log4j>
@@ -205,11 +205,11 @@
             <artifactId>infinispan-clustered-counter</artifactId>
         </dependency>-->
 
-        <dependency>
+        <!--dependency>
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups</artifactId>
             <version>${version.jgroups}</version>
-        </dependency>
+        </dependency-->
 
         <dependency>
             <groupId>com.hazelcast</groupId>
